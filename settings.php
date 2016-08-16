@@ -15,24 +15,24 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * khanimport report settings.
+ * ELMS export settings.
  *
- * @package    report_khanimport
- * @copyright  2015 Joseph Gilgen <gilgenlabs@gmail.com>
+ * @package    report_elmsexp
+ * @copyright  2016 Joseph Gilgen <gilgenlabs@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$settings->add(new admin_setting_heading('khanimport_header',
-                                         get_string('headerconfig', 'report_khanimport'),
-                                         get_string('descconfig', 'report_khanimport')));
+$settings->add(new admin_setting_heading('report_elmsexp_header',
+                                         get_string('headerconfig', 'report_elmsexp'),
+                                         get_string('descconfig', 'report_elmsexp')));
 
-$settings->add(new admin_setting_configtext('khanimport/consumer_key',
-                                                get_string('consumerkey', 'report_khanimport'),
-                                                get_string('descconsumerkey', 'report_khanimport'),
+$settings->add(new admin_setting_configtext('report_elmsexp/key',
+                                                get_string('username', 'report_elmsexp'),
+                                                get_string('descusername', 'report_elmsexp'),
                                                 null));
-$settings->add(new admin_setting_configtext('khanimport/consumer_secret',
-                                                get_string('consumersecret', 'report_khanimport'),
-                                                get_string('descconsumersecret', 'report_khanimport'),
+$settings->add(new admin_setting_configtext('report_elmsexp/secret',
+                                                get_string('secret', 'report_elmsexp'),
+                                                get_string('descsecret', 'report_elmsexp'),
                                                 null));

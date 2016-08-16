@@ -1,21 +1,40 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="report/khanimport/db" VERSION="2014080400" COMMENT="XMLDB file for Moodle report/khanimport"
+<XMLDB PATH="report/elmsexp/db" VERSION="2015092800" COMMENT="XMLDB file for Moodle report/khanimport"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="../../../lib/xmldb/xmldb.xsd"
 >
   <TABLES>
-    <TABLE NAME="report_khanimport" COMMENT="Retrieve and update grades from Khan Academy">
+    <TABLE NAME="report_elmsexp_itemid" COMMENT="Store the relationship between Moodle gradeitems and ELMS gradeitems">
       <FIELDS>
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
-        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="id of related user record"/>
-        <FIELD NAME="oauthtoken" TYPE="char" LENGTH="100" NOTNULL="true" SEQUENCE="false" COMMENT="user oauth token"/>
-        <FIELD NAME="oauthsecret" TYPE="char" LENGTH="100" NOTNULL="true" SEQUENCE="false" COMMENT="user oauth secret"/>
-        <FIELD NAME="timestamp" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="date token was fetched"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="id of related course"/>
+        <FIELD NAME="gradeitemid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="id of related gradeitem"/>
+        <FIELD NAME="elmsid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="page id of elms grade item"/>
       </FIELDS>
       <KEYS>
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
-        <KEY NAME="uniquetoken" TYPE="unique" FIELDS="userid, oauthtoken, oauthsecret" COMMENT="ensure that user only has one token and secret"/>
+        <KEY NAME="unique" TYPE="unique" FIELDS="gradeitemid" COMMENT="ensure that there is only one grade item for elms page"/>
       </KEYS>
+      <INDEXES>
+        <INDEX NAME="gradeitemindx" UNIQUE="true" FIELDS="gradeitemid"/>
+        <INDEX NAME="courseindx" UNIQUE="false" FIELDS="courseid"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="report_elmsexp_courseid" COMMENT="Store the relationship between Moodle courseids and ELMS courseids">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="id of related course"/>
+        <FIELD NAME="elmscourseid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="course id elms gradeitem"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="uniquecourse" TYPE="unique" FIELDS="courseid" COMMENT="ensure that there is only one courseid for elms course"/>
+        <KEY NAME="uniqueelmsid" TYPE="unique" FIELDS="elmscourseid" COMMENT="ensure that there is only one courseid for elms course"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="courseindx" UNIQUE="true" FIELDS="courseid"/>
+        <INDEX NAME="elmsidindx" UNIQUE="true" FIELDS="elmscourseid"/>
+      </INDEXES>
     </TABLE>
   </TABLES>
 </XMLDB>

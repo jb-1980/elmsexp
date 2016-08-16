@@ -28,10 +28,6 @@ require_once($CFG->dirroot . '/course/lib.php');
 require_once(dirname(__FILE__) . '/form.php');
 
 $id = required_param('id', PARAM_INT); // Course id.
-$update = optional_param('update',0,PARAM_BOOL);
-$oauth_token = optional_param('oauth_token',null,PARAM_RAW);
-$oauth_token_secret = optional_param('oauth_token_secret',null,PARAM_RAW);
-$oauth_verifier = optional_param('oauth_verifier',null,PARAM_RAW);
 
 // Should be a valid course id.
 $course = $DB->get_record('course', array('id' => $id), '*', MUST_EXIST);
@@ -39,58 +35,16 @@ $course = $DB->get_record('course', array('id' => $id), '*', MUST_EXIST);
 require_login($course);
 
 // Setup page.
-$PAGE->set_url('/report/khanimport/index.php', array('id'=>$id));
+$PAGE->set_url('/report/elmsexp/index.php', array('id'=>$id));
 $PAGE->set_pagelayout('admin');
 
 // Check permissions.
 $coursecontext = context_course::instance($course->id);
-require_capability('report/khanimport:view', $coursecontext);
-
-// Authenticate with Khan Academy's API
-$consumer_obj = get_config('khanimport');
-$args = array(
-    'api_root'=>'http://www.khanacademy.org/',
-    'oauth_consumer_key'=>$consumer_obj->consumer_key,
-    'oauth_consumer_secret'=>$consumer_obj->consumer_secret,
-    'request_token_api'=>'http://www.khanacademy.org/api/auth/request_token',
-    'access_token_api'=>'http://www.khanacademy.org/api/auth/access_token',
-    'oauth_callback'=>"{$CFG->wwwroot}/report/khanimport/index.php?id={$id}"
-);
-$khanacademy = new khanacademy($args);
-if(!$tokens = $DB->get_record('report_khanimport',array('userid'=>$USER->id))){
-    if($oauth_token and $oauth_token_secret and $oauth_verifier){
-        $keys = $khanacademy->get_access_token($oauth_token, $oauth_token_secret, $oauth_verifier);
-        $data = new stdClass;
-        $data->userid = $USER->id;
-        $data->oauthtoken = $keys['oauth_token'];
-        $data->oauthsecret = $keys['oauth_token_secret'];
-        $data->timestamp = time();
-        $DB->insert_record('report_khanimport',$data);
-    } else {
-        $khanacademy->request_token();
-    }
-} else{
-    if(time() - $tokens->timestamp > 1209600 or $update){
-        if($oauth_token and $oauth_token_secret and $oauth_verifier){
-        $keys = $khanacademy->get_access_token($oauth_token, $oauth_token_secret, $oauth_verifier);
-        $data = new stdClass;
-        $data->id = $tokens->id;
-        $data->userid = $tokens->userid;
-        $data->oauthtoken = $keys['oauth_token'];
-        $data->oauthsecret = $keys['oauth_token_secret'];
-        $data->timestamp = time();
-        $DB->update_record('report_khanimport',$data);
-        } else {
-            $khanacademy->request_token();
-        }
-    } else{
-        $khanacademy->set_access_token($tokens->oauthtoken,$tokens->oauthsecret);
-    }
-}
+require_capability('report/elmsexp:view', $coursecontext);
 
 // Creating form instance, passed course id as parameter to action url.
-$baseurl = new moodle_url('/report/khanimport/index.php', array('id' => $id));
-$mform = new report_khanimport_form($baseurl);
+$baseurl = new moodle_url('/report/elmsexp/index.php', array('id' => $id));
+$mform = new report_elmsexp_form($baseurl);
 
 $returnurl = new moodle_url('/course/view.php', array('id' => $id));
 if ($mform->is_cancelled()) {
@@ -98,58 +52,52 @@ if ($mform->is_cancelled()) {
     redirect($returnurl);
 } else if ($data = $mform->get_data()) {
     print_object($data);
-    $params = array('exercises'=>array());
-    // if skills have been selected, get data just for those skills,
-    // else get data for all skills in KA
-    if(array_search(1,$data->skills) !== False){
-        foreach($data->skills as $skill=>$value){
-            if($value){
-                $params['exercises'][] = $skill;
-            }
-        }
-    }
-    foreach($data->student as $student=>$selected){
-        if($selected['checked']){
-            $params['email']=$selected['email'];
-            $content = $khanacademy->get_many_exercises($params);
-        } else{
-            continue;
-        }
-        
-        $requester = json_decode($khanacademy->request('GET','http://www.khanacademy.org/api/v1/user'));
+    $eid = $data->elms_course_id;
+    $elms_ids = $data->elms_ids;
 
-        // If user doesn't have requester as coach, khan academy will return content
-        // of the requester. This check prevents us from updating grades with bad info
-        if($requester->key_email == $content[0]->user){
-            $content = null;
-            continue;
+    $transaction = $DB->start_delegated_transaction();
+
+    // Update elms course id in database if necessary
+    if($data->elms_course_id != 0){
+        if(!$elmscourse = $DB->get_record('report_elmsexp_courseid',array('courseid'=>$course->id))){
+            $dataobject = new stdClass;
+            $dataobject->courseid = $course->id;
+            $dataobject->elmscourseid = $data->elms_course_id;
+            $DB->insert_record('report_elmsexp_courseid',$dataobject);
+        } else{
+            $elmscourse->elmscourseid = $data->elms_course_id;
+            $DB->update_record('report_elmsexp_courseid', $elmscourse);
         }
-        
-        // Find the progress level for each skill, and update the grade in the gradebook
-        foreach($content as $index=>$skillmodel){
-            $exercise = $skillmodel->exercise;
-            if(in_array($exercise,array_keys($data->skills))){
-                $skill_level = $skillmodel->exercise_progress->level;
-                $finalgrade = array(
-                  'unstarted'=>false,
-                  'practiced'=>85,
-                  'mastery1'=>90,
-                  'mastery2'=>95,
-                  'mastery3'=>100)[$skill_level];
-                report_khanimport_update_grade($student, $finalgrade, $id, $exercise);
-            }
-        }
-        $content = null;
-        
+    } elseif($elmscourse = $DB->get_record('report_elmsexp_courseid', array('courseid'=>$course->id))){
+        $DB->delete_records('report_elmsexp_courseid',array('courseid'=>$course->id));
     }
+
+    // Update elms item ids in database
+    foreach($elms_ids as $k=>$v){
+
+        if($v!=0){
+            if(!$record = $DB->get_record('report_elmsexp_itemid',array('gradeitemid'=>$k))){
+                $dataobject = new stdClass;
+                $dataobject->courseid = $course->id;
+                $dataobject->gradeitemid = $k;
+                $dataobject->elmsid = $v;
+                $DB->insert_record('report_elmsexp_itemid',$dataobject);
+            } else{
+                $record->elmsid = $v;
+                $DB->update_record('report_elmsexp_itemid', $record);
+            }
+        } elseif($record = $DB->get_record('report_elmsexp_itemid',array('gradeitemid'=>$k))){
+            $DB->delete_records('report_elmsexp_itemid',array('gradeitemid'=>$k));
+        }
+    }
+    $transaction->allow_commit();
     rebuild_course_cache($course->id);
     redirect($returnurl);
 } else {
-    $PAGE->set_title($course->shortname .': '. get_string('khanimport', 'report_khanimport'));
+    $PAGE->set_title($course->shortname .': '. get_string('elmsexport', 'report_elmsexp'));
     $PAGE->set_heading($course->fullname);
     echo $OUTPUT->header();
     echo $OUTPUT->heading(format_string($course->fullname));
     $mform->display();
     echo $OUTPUT->footer();
 }
-

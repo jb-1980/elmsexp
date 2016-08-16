@@ -16,16 +16,15 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * My Grades Report.
+ * Elms Export.
  *
- * @package   report_mygrades
- * @author    David Bezemer <david.bezemer@uplearning.nl>
- * @credits   Based on original work block_mygrades by Karen Holland, Mei Jin, Jiajia Chen
+ * @package   report_elmsexp
+ * @author    Joseph Gilgen <gilgenlabs@gmail.com>
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$plugin->version = 2014102102;
-$plugin->component = 'report_khanimport';
+$plugin->version = 2016081200;
+$plugin->component = 'report_elmsexp';
 $plugin->requires = 2013051400;
-$plugin->release = '1.2 (Build: 2014031200)';
+$plugin->release = '1.0';
 $plugin->maturity = MATURITY_ALPHA;

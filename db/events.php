@@ -15,25 +15,19 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * report_elmsexp capability definitions.
+ * Event observers definition.
  *
- * @package   report_elmsexp
+ * @package report_elmsexp
+ * @category event
  * @copyright 2015 Joseph Gilgen <gilgenlabs@gmail.com>
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die;
+$observers = array(
 
-
-$capabilities = array(
-    'report/elmsexp:view' => array(
-        'riskbitmask' => RISK_PERSONAL,
-        'captype' => 'read',
-        'contextlevel' => CONTEXT_COURSE,
-        'archetypes' => array(
-            'editingteacher' => CAP_ALLOW,
-            'manager' => CAP_ALLOW
-        ),
-        'clonepermissionsfrom' => 'moodle/grade:edit',
+    array(
+        'eventname' => 'core\event\user_graded',
+        'callback' => 'report_elmsexp_observer::user_graded',
     ),
+
 );

@@ -25,74 +25,90 @@ require_once(dirname(__FILE__) . '/lib.php');
 /**
  * The form for selecting the khan import options.
  *
- * @copyright 2014 Joseph Gilgen
+ * @copyright 2015 Joseph Gilgen
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class report_khanimport_form extends moodleform {
+class report_elmsexp_form extends moodleform {
 
     public function definition() {
         global $CFG, $COURSE, $DB;
         $mform = $this->_form;
         // Context instance of the course.
         $coursecontext = context_course::instance($COURSE->id);
-
         // Check if user has capability to upgrade/manage grades.
         $readonlygrades = !has_capability('moodle/grade:manage', $coursecontext);
 
-        // Allow to reset authenticated account
-        $updateurl = new moodle_url('/report/khanimport/index.php', array('id' => $COURSE->id,'update'=>1));
-        $link_text = get_string('changeauthenticateduser','report_khanimport');
-        $html = "<p style='text-align:center;'><a class='khanimport-button-link' href='{$updateurl}'>{$link_text}</a></p>";
-        $mform->addElement('html',$html);
-        // Fetching Gradebook items.
+        $directions = get_string('directions','report_elmsexp');
+        $mform->addElement('html', "<h4>{$directions}</h4>");
+
+        $elmscourseid = $DB->get_record('report_elmsexp_courseid',array('courseid'=>$COURSE->id));
+        $mform->addElement('text',"elms_course_id",'ELMS Course ID',array('style'=>'size:20px;'));
+        $mform->setType("elms_course_id", PARAM_INT);
+        $default = $elmscourseid ? $elmscourseid->elmscourseid : null;
+        $mform->setDefault("elms_course_id", $default);
+
         $gradeitems = grade_item::fetch_all(array('courseid' => $COURSE->id));
-
+        print_object($COURSE->id);
+        $elms_ids = $DB->get_records_menu('report_elmsexp_itemid',array('courseid'=>$COURSE->id),'','gradeitemid,elmsid');
+        print_object($elms_ids);
         // Course module will be always fetched,
-        // so lenghth will always be 1 if no gread item is fetched.
+        // so length will always be 1 if no grade item is fetched.
         if (is_array($gradeitems) && (count($gradeitems) >1)) {
-            usort($gradeitems, 'report_khanimport_sort_array_by_sortorder');
+            usort($gradeitems, 'report_elmsexp_sort_array_by_sortorder');
 
-            // Section to display Khan Academy Items.
-            $mform->addElement('header', 'khanacademyitems',
-                    get_string('khanacademyitems', 'report_khanimport'));
-            $mform->setExpanded('khanacademyitems', False);
+            // Section to display quiz activities.
+            $mform->addElement('header', 'coursegradeitems',
+                    get_string('gradeitems', 'report_elmsexp'));
+
+
+            $mform->setExpanded('coursegradeitems', True);
             // Looping through all grade items.
-            $this->add_checkbox_controller(1);
             foreach ($gradeitems as $gradeitem) {
                 // Skip course and category grade items.
                 if ($gradeitem->itemtype == "course" or $gradeitem->itemtype == "category") {
                     continue;
                 }
-                // Skip items without an idnumber (assumes only Khan Skills have them)
-                // TODO find a way to make a Khan Skill item easily distinguishable
-                if(!$gradeitem->idnumber){
-                    continue;
-                }
-                
-                $mform->addElement('advcheckbox', "skills[{$gradeitem->idnumber}]", $gradeitem->itemname  , null, array('group' => 1));
+                $mform->addElement(
+                    'text',
+                    "elms_ids[{$gradeitem->id}]",
+                    $gradeitem->itemname,
+                    array('style'=>'size:20px;')
+                );
+                $mform->setType("elms_ids[{$gradeitem->id}]", PARAM_INT);
+                $default = isset($elms_ids[$gradeitem->id]) ? $elms_ids[$gradeitem->id] : null;
+                $mform->setDefault("elms_ids[{$gradeitem->id}]", $default);
+                // $mform->setDefault("gradeitem[{$gradeitem->idnumber}][elms_id]", 10);
+                //$mform->addGroup($gradeitem_array,"gradeitem[{$gradeitem->idnumber}]",$gradeitem->itemname);
+                // $mform->setType("gradeitem[{$gradeitem->idnumber}][elms_id]", PARAM_INT);
+                // $mform->setDefault("gradeitem[{$gradeitem->idnumber}][elms_id]", 10);
+
+                //$mform->addElement('advcheckbox', "gradeitem[{$gradeitem->idnumber}]", $gradeitem->itemname  , null, array('group' => 1));
 
             }
         }
-        // Section to display students.
-        $mform->addElement('header', 'students',
-                get_string('students', 'report_khanimport'));
-        $mform->setExpanded('students', False);
-        $enroled_users = get_enrolled_users($coursecontext, $withcapability = '', $groupid = 0, $userfields = 'u.id,u.firstname,u.lastname,u.email', $orderby = 'lastname',$limitfrom = 0, $limitnum = 0, $onlyactive = true);
-        $roleid = $DB->get_record('role',array('shortname'=>'student'))->id;
-        // Looping through each user
-        $this->add_checkbox_controller(2);
-        foreach($enroled_users as $enroled_user){
-            if(user_has_role_assignment($enroled_user->id, $roleid, $contextid = $coursecontext->id)){
-                $studentarray = array();
-                $studentarray[] =& $mform->createElement('advcheckbox', "checked", $enroled_user->firstname.' '.$enroled_user->lastname, null, array('group' => 2));
-                $studentarray[] =& $mform->createElement('text',"email",'',array('style'=>'size:20px;'));
-                $mform->addGroup($studentarray,"student[{$enroled_user->id}]",$enroled_user->firstname.' '.$enroled_user->lastname);
-                $mform->setType("student[{$enroled_user->id}][email]", PARAM_EMAIL);
-                $mform->setDefault("student[{$enroled_user->id}][email]", $enroled_user->email);
+
+
+
+        $this->add_action_buttons(True,get_string('submit','report_elmsexp'));
+
+    }
+
+    function data_preprocessing(&$default_values){
+        global $DB;
+        if(!empty($this->_instance)){
+            print_object($this);
+            $default_values['attempts'] = $this->current->attempts;
+
+            if(($elms_id = $DB->get_records('report_elmsexp',
+              array('elmscourseid'=>$this->_instance), 'position'))){
+
+                foreach($skills as $key => $value){
+                    $default_values['skillname['.$value->position.']'] = $value->skillname;
+                    $default_values['skillid['.$value->position.']'] = $value->id;
+                }
+
             }
+
         }
-        
-        $this->add_action_buttons(True,get_string('submit','report_khanimport'));
-        
     }
 }
